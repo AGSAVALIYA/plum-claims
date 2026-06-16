@@ -145,15 +145,19 @@ services:
       - plum_net
     restart: unless-stopped
 
-  # ── Documentation ───────────────────────────────────────
+  # ── Documentation (Mintlify) ─────────────────────────────
   docs:
-    image: nginx:alpine
+    image: node:20-alpine
     container_name: plum_prod_docs
+    working_dir: /docs
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+    command: sh -c "npx mintlify dev"
     ports:
-      - "3054:80"
+      - "3054:3000"
     volumes:
-      - ./docs:/usr/share/nginx/html/docs:ro
-      - ./infra/nginx/docs.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docs:/docs
     networks:
       - plum_net
     restart: unless-stopped

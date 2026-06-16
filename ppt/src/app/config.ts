@@ -5,7 +5,7 @@ export const CONFIG = {
   // GitHub repository base URL
   githubBaseUrl:
     process.env.NEXT_PUBLIC_GITHUB_URL ||
-    "https://github.com/YOUR_USERNAME/plum-claims/blob/main",
+    "https://github.com/AGSAVALIYA/plum-claims/blob/main",
 
   // Presenter info (customize via env or edit here)
   presenter: {
