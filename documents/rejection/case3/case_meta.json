@@ -1,0 +1,13 @@
+{
+  "case_id": "case3",
+  "name": "Patient Name Mismatch",
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-01",
+  "claimed_amount": 1500,
+  "hospital_name": "",
+  "patient_name": "Rajesh Kumar",
+  "diagnosis": "Viral Fever",
+  "expected_rejection_reason": "PATIENT_MISMATCH",
+  "scenario": "Prescription for Rajesh Kumar, bill for Arjun Mehta"
+}

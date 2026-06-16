@@ -1,0 +1,13 @@
+{
+  "case_id": "case7",
+  "name": "Pre-Authorization Missing \u2014 MRI Lumbar Spine",
+  "member_id": "EMP007",
+  "claim_category": "DIAGNOSTIC",
+  "treatment_date": "2024-11-02",
+  "claimed_amount": 15000,
+  "hospital_name": "AIIMS Diagnostic Centre, Delhi",
+  "patient_name": "Suresh Patil",
+  "diagnosis": "Suspected Lumbar Disc Herniation (L4-L5) with Right S1 Radiculopathy",
+  "expected_rejection_reason": "PRE_AUTH_MISSING",
+  "scenario": "MRI >\u20b910,000 requires pre-authorization. Not obtained."
+}

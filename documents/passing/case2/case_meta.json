@@ -1,0 +1,12 @@
+{
+  "case_id": "case2",
+  "name": "Diagnostic Lab Tests \u2014 Annual Health Checkup",
+  "member_id": "EMP002",
+  "claim_category": "DIAGNOSTIC",
+  "treatment_date": "2024-11-05",
+  "claimed_amount": 2000,
+  "hospital_name": "Precision Diagnostics Pvt Ltd",
+  "patient_name": "Priya Singh",
+  "diagnosis": "Routine Health Screening \u2014 NAD (No Abnormality Detected)",
+  "expected_decision": "APPROVED"
+}

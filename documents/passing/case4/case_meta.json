@@ -1,0 +1,12 @@
+{
+  "case_id": "case4",
+  "name": "Network Hospital \u2014 Apollo (Discount Applied)",
+  "member_id": "EMP010",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-03",
+  "claimed_amount": 4500,
+  "hospital_name": "Apollo Hospitals",
+  "patient_name": "Deepak Shah",
+  "diagnosis": "Acute Bronchitis with Reactive Airway Disease",
+  "expected_decision": "APPROVED"
+}

@@ -1,0 +1,285 @@
+---
+title: "API Reference"
+description: "Complete REST API reference for the Plum Claims system."
+keywords: ["API", "REST", "endpoints", "reference"]
+---
+
+# API Reference
+
+All endpoints are prefixed with `/api/v1` (configurable via `API_PREFIX`).
+
+## Authentication
+
+All endpoints except `/auth/login`, `/auth/register`, `/health`, `/ready`, and `/metrics` require a JWT token:
+
+```
+Authorization: Bearer <token>
+```
+
+Admin endpoints additionally require `role: "admin"` in the JWT.
+
+## Claims
+
+### Submit a claim (JSON)
+
+```http
+POST /api/v1/claims
+Content-Type: application/json
+
+{
+  "member_id": "EMP001",
+  "policy_id": "PLUM_GHI_2024",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-01",
+  "claimed_amount": 1500,
+  "hospital_name": "City Clinic",
+  "documents": [
+    {
+      "file_id": "F001",
+      "file_name": "prescription.jpg",
+      "actual_type": "PRESCRIPTION",
+      "content": { "doctor_name": "Dr. Sharma", "diagnosis": "Fever" }
+    }
+  ]
+}
+```
+
+**Response**: `202 Accepted`
+```json
+{
+  "claim_id": 6,
+  "status": "SUBMITTED",
+  "message": "Claim submitted and is being processed."
+}
+```
+
+### Submit with file upload
+
+```http
+POST /api/v1/claims/upload
+Content-Type: multipart/form-data
+
+member_id: EMP001
+claim_category: CONSULTATION
+treatment_date: 2024-11-01
+claimed_amount: 1500
+files: [prescription.png, hospital_bill.png]
+document_types: ["PRESCRIPTION", "HOSPITAL_BILL"]
+```
+
+### Get claim detail
+
+```http
+GET /api/v1/claims/{claim_id}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "claim_id": 6,
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "claimed_amount": 1500,
+  "approved_amount": 1349.1,
+  "decision": "APPROVED",
+  "decision_reason": "Valid claim. 10% co-pay applied.",
+  "confidence_score": 0.92,
+  "status": "DECIDED",
+  "documents": [...],
+  "line_items": [...]
+}
+```
+
+### List claims
+
+```http
+GET /api/v1/claims?member_id=EMP001&status=DECIDED&limit=50&offset=0
+```
+
+### Get processing trace
+
+```http
+GET /api/v1/claims/{claim_id}/trace
+```
+
+### Retry a failed claim
+
+```http
+POST /api/v1/claims/{claim_id}/retry
+Content-Type: application/json
+
+{
+  "comment": "Uploading corrected documents",
+  "documents": [
+    {"file_id": "F002", "file_name": "new_bill.jpg", "actual_type": "HOSPITAL_BILL"}
+  ]
+}
+```
+
+## Documents
+
+### Upload a document
+
+```http
+POST /api/v1/documents/upload
+Content-Type: multipart/form-data
+
+file: [document.pdf]
+document_type: HOSPITAL_BILL
+```
+
+**Response**: `200 OK`
+```json
+{
+  "file_id": "abc123",
+  "file_name": "hospital_bill.pdf",
+  "file_path": "/workspace/uploads/abc123.pdf",
+  "content_type": "application/pdf",
+  "size_bytes": 45678
+}
+```
+
+### View document
+
+```http
+GET /api/v1/documents/db/{document_id}/view
+```
+
+Returns the actual file content with proper MIME type for inline browser rendering.
+
+### List claim documents
+
+```http
+GET /api/v1/documents/claim/{claim_id}
+```
+
+## Auth
+
+### Login
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "member_id": "EMP001",
+  "password": "pass001"
+}
+```
+
+**Response**: `200 OK`
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer",
+  "member_id": "EMP001",
+  "member_name": "Rajesh Kumar",
+  "role": "member"
+}
+```
+
+### Register
+
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "member_id": "EMP001",
+  "password": "pass001"
+}
+```
+
+## Admin
+
+### Dashboard stats
+
+```http
+GET /api/v1/admin/dashboard
+```
+
+**Response**:
+```json
+{
+  "total_claims": 42,
+  "status_counts": {"DECIDED": 35, "PROCESSING": 3, "DOCUMENT_ERROR": 4},
+  "decision_counts": {"APPROVED": 28, "REJECTED": 5, "PARTIAL": 2},
+  "avg_confidence": 0.87,
+  "manual_review_count": 3,
+  "recent_events": [...]
+}
+```
+
+### List all claims
+
+```http
+GET /api/v1/admin/claims?member_id=EMP001&decision=APPROVED&date_from=2024-01-01&claim_category=CONSULTATION
+```
+
+### Override decision
+
+```http
+POST /api/v1/admin/claims/{claim_id}/override
+Content-Type: application/json
+
+{
+  "decision": "APPROVED",
+  "approved_amount": 1500,
+  "comment": "Manual review complete, approving full amount"
+}
+```
+
+### Rerun pipeline
+
+```http
+POST /api/v1/admin/claims/{claim_id}/rerun
+```
+
+Resets the claim to SUBMITTED and re-processes through the full pipeline.
+
+### Add comment
+
+```http
+POST /api/v1/admin/claims/{claim_id}/comment
+Content-Type: application/json
+
+{
+  "comment": "Verified documents manually, all looks correct"
+}
+```
+
+## Health checks
+
+```http
+GET /health          → {"status": "healthy"}
+GET /ready           → {"status": "ready", "checks": {"database": "ok", "redis": "ok", "llm": "ok"}}
+GET /metrics         → Prometheus metrics
+```
+
+## Error format
+
+All errors return structured JSON:
+
+```json
+{
+  "error": {
+    "code": "DOCUMENT_VALIDATION",
+    "message": "Missing required document: HOSPITAL_BILL",
+    "details": {
+      "required_type": "HOSPITAL_BILL",
+      "claim_category": "CONSULTATION"
+    }
+  }
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Success |
+| 202 | Accepted (async processing) |
+| 400 | Bad request |
+| 401 | Not authenticated |
+| 403 | Not authorized (not admin) |
+| 404 | Resource not found |
+| 422 | Validation error |
+| 429 | Rate limited |

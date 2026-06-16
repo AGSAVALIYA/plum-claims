@@ -1,0 +1,33 @@
+{
+  "case_id": "case10",
+  "name": "Fraud Signal \u2014 4th Same-Day Claim (MANUAL_REVIEW)",
+  "member_id": "EMP008",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-10-30",
+  "claimed_amount": 4800,
+  "hospital_name": "City Clinic A, Bengaluru",
+  "patient_name": "Ravi Menon",
+  "diagnosis": "Migraine with Vertiginous Component \u2014 Rule Out Vestibular Migraine",
+  "expected_rejection_reason": "MANUAL_REVIEW",
+  "scenario": "4th claim on same day from EMP008 \u2014 triggers fraud flag.",
+  "claims_history": [
+    {
+      "claim_id": "CLM_0081",
+      "date": "2024-10-30",
+      "amount": 1200,
+      "provider": "City Clinic A"
+    },
+    {
+      "claim_id": "CLM_0082",
+      "date": "2024-10-30",
+      "amount": 1800,
+      "provider": "City Clinic B"
+    },
+    {
+      "claim_id": "CLM_0083",
+      "date": "2024-10-30",
+      "amount": 2100,
+      "provider": "Wellness Center"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "case_id": "case7",
+  "name": "Alternative Medicine \u2014 Panchakarma (Ayurveda)",
+  "member_id": "EMP006",
+  "claim_category": "ALTERNATIVE_MEDICINE",
+  "treatment_date": "2024-11-07",
+  "claimed_amount": 4000,
+  "hospital_name": "Ayur Wellness & Panchakarma Centre",
+  "patient_name": "Kavita Nair",
+  "diagnosis": "Sandhivata (Osteoarthritis of Knees) \u2014 Vata-Kapha predominance",
+  "expected_decision": "APPROVED"
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "case8",
+  "name": "Dental \u2014 Teeth Whitening (Cosmetic, Excluded)",
+  "member_id": "EMP002",
+  "claim_category": "DENTAL",
+  "treatment_date": "2024-10-25",
+  "claimed_amount": 6000,
+  "hospital_name": "Smile Dental Clinic & Implant Centre",
+  "patient_name": "Priya Singh",
+  "diagnosis": "Extrinsic Dental Stains \u2014 Aesthetic Concern",
+  "expected_rejection_reason": "EXCLUDED_CONDITION",
+  "scenario": "Teeth whitening is cosmetic, excluded under dental policy. Scaling may be covered."
+}

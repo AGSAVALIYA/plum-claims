@@ -1,0 +1,12 @@
+{
+  "case_id": "case6",
+  "name": "Vision \u2014 Eye Exam & Prescription Glasses",
+  "member_id": "EMP004",
+  "claim_category": "VISION",
+  "treatment_date": "2024-11-06",
+  "claimed_amount": 2500,
+  "hospital_name": "Vasan Eye Care Hospital",
+  "patient_name": "Sneha Reddy",
+  "diagnosis": "Simple Myopia (OD: -2.25D, OS: -2.00D) with Astigmatism",
+  "expected_decision": "APPROVED"
+}

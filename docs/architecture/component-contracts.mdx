@@ -1,0 +1,454 @@
+---
+title: "Component Contracts"
+description: "Detailed interfaces for each domain service, agent, and provider"
+---
+
+# Component Contracts
+
+## Domain Services
+
+### ClaimsService
+
+**Location:** `backend/domain/claims/service.py`
+
+Manages the full claim lifecycle — creation, document attachment, status updates, events, and retries.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `create_claim` | member_id, policy_id, category, treatment_date, amount, hospital_name | `Claim` | Creates claim in SUBMITTED status |
+| `add_documents` | claim_id, documents[] | `list[ClaimDocument]` | Attaches document metadata |
+| `update_document_verification_status` | claim_id, document_statuses[] | `None` | Updates verification results |
+| `add_line_items` | claim_id, line_items[] | `list[ClaimLineItem]` | Adds extracted line items |
+| `add_processing_step` | claim_id, step_index, step_name, agent_name, status, input_data, output_data, ... | `ClaimProcessingStep` | Records pipeline step |
+| `update_claim_status` | claim_id, status, decision, approved_amount, ... | `None` | Updates final decision |
+| `get_claim` | claim_id | `Claim \| None` | Get claim by ID |
+| `get_claim_with_details` | claim_id | `dict` | Full claim with documents, line_items, steps |
+| `list_claims` | member_id?, status?, limit, offset | `tuple[list, int]` | Paginated listing |
+| `create_event` | claim_id, event_type, actor_type, actor_id, comment, metadata | `ClaimEvent` | Records audit event |
+| `get_events` | claim_id | `list[ClaimEvent]` | Get audit trail |
+| `create_retry_attempt` | claim_id, attempt_number, reason, ... | `ClaimRetryAttempt` | Records retry |
+| `get_retry_attempts` | claim_id | `list[ClaimRetryAttempt]` | Get retry history |
+| `get_dashboard_stats` | — | `dict` | Aggregate stats for admin |
+| `reset_claim_for_retry` | claim_id | `None` | Resets to SUBMITTED |
+
+#### Claim Status Flow
+
+```
+SUBMITTED → PROCESSING → DECIDED
+                ↓
+            DOCUMENT_ERROR
+                ↓
+            (retry) → SUBMITTED
+```
+
+#### Event Types
+
+- `SUBMITTED` — Claim created
+- `PROCESSING_STARTED` — Pipeline began
+- `STEP_COMPLETED` — Agent finished successfully
+- `STEP_FAILED` — Agent failed
+- `DECISION_MADE` — Final decision recorded
+- `RETRY_REQUESTED` — User requested retry
+- `RETRY_STARTED` — Retry pipeline began
+- `ADMIN_OVERRIDE` — Admin changed decision
+- `COMMENT_ADDED` — Admin added comment
+
+---
+
+### MemberService
+
+**Location:** `backend/domain/member/service.py`
+
+Manages member registration, authentication, and claims summaries.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `load_members_from_policy` | — | `int` | Seeds members from policy_terms.json |
+| `get_member` | member_id | `Member \| None` | Lookup by ID |
+| `get_primary_member_id` | member_id | `str` | Resolves primary for dependents |
+| `get_claims_summary` | member_id, year? | `MemberClaimsSummary \| None` | Aggregated claims data |
+| `get_or_create_summary` | member_id, year | `MemberClaimsSummary` | Idempotent creation |
+| `get_family_total` | primary_member_id, year | `Decimal` | Sum of approved amounts across family |
+| `update_on_claim_decision` | member_id, amount, date, category, sessions | `None` | Updates summary after decision |
+| `register_member` | member_id, password | `Member` | Sets password for existing member |
+| `set_password` | member_id, password | `None` | Admin password reset |
+| `authenticate` | member_id, password | `Member \| None` | Verify credentials |
+
+#### Password Storage
+
+Format: `salt:hash` where:
+- `salt` — 16-byte random hex string
+- `hash` — SHA-256 of `salt + password`
+
+#### Member Roles
+
+- `member` — Can submit claims, view own claims
+- `admin` — Full access to admin endpoints
+- `reviewer` — Can view claims (future use)
+
+---
+
+### PolicyService
+
+**Location:** `backend/domain/policy/service.py`
+
+Singleton that loads and evaluates policy rules from `policy_terms.json`.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `get_document_requirements` | claim_category | `{required: [], optional: []}` | Required doc types |
+| `is_category_covered` | claim_category | `bool` | Category in policy |
+| `get_sub_limit` | claim_category | `Decimal` | Category sub-limit |
+| `get_copay_percent` | claim_category | `float` | Co-pay percentage |
+| `get_network_discount_percent` | claim_category, hospital_name | `float` | Network discount |
+| `is_network_hospital` | hospital_name | `bool` | Hospital in network |
+| `get_per_claim_limit` | — | `Decimal` | Per-claim max |
+| `get_annual_opd_limit` | — | `Decimal` | Annual OPD max |
+| `get_sum_insured` | — | `Decimal` | Total sum insured |
+| `get_family_floater_limit` | — | `Decimal` | Family floater max |
+| `is_within_waiting_period` | join_date, treatment_date, diagnosis? | `WaitingPeriodResult` | Waiting period check |
+| `is_excluded_condition` | diagnosis | `bool` | Excluded condition check |
+| `needs_pre_authorization` | category, line_items | `PreAuthResult` | Pre-auth requirement |
+
+#### Waiting Period Types
+
+- **Initial** — 30 days from join date (all claims)
+- **Condition-specific** — 90 days for diabetes, hypertension, etc.
+- **Pre-existing** — 365 days for pre-existing conditions
+
+#### Excluded Conditions
+
+Obesity, cosmetic surgery, experimental treatment, infertility, gender reassignment, self-harm, substance abuse, war injuries, criminal acts, alternative medicine (unless category-specific).
+
+---
+
+### DocumentService
+
+**Location:** `backend/domain/documents/service.py`
+
+Handles document verification and data extraction.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `verify_documents` | claim_id, category, doc_reqs, uploaded_docs | `VerificationResult` | Validates documents |
+| `extract_document_data` | claim_id, documents, llm_provider?, simulate_failure? | `ExtractionResult` | Extracts structured data |
+
+#### Verification Checks
+
+1. **Required types** — All required document types present
+2. **Wrong type** — Unexpected document types flagged
+3. **Quality** — Readability check (GOOD/UNREADABLE)
+4. **Patient consistency** — Same patient name across documents
+
+#### Verification Error Types
+
+- `MISSING_REQUIRED` — Required document not uploaded
+- `WRONG_TYPE` — Wrong document type for claim category
+- `UNREADABLE` — Document quality too low
+- `PATIENT_MISMATCH` — Different patient names on documents
+
+#### Extraction Routes
+
+| Route | Condition | Method |
+|-------|-----------|--------|
+| A | Pre-extracted structured data in `content` | Direct use + AI validation |
+| B | Image/PDF content | Vision LLM extraction |
+| C | No content | Skip extraction |
+| D | Plain text content | Text LLM extraction |
+
+---
+
+### FraudService
+
+**Location:** `backend/domain/fraud/service.py`
+
+Evaluates fraud signals with weighted scoring.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `assess_fraud` | claim_id, member_id, treatment_date, amount, claims_history? | `FraudResult` | Fraud assessment |
+
+#### Fraud Signals
+
+| Signal | Weight | Threshold | Description |
+|--------|--------|-----------|-------------|
+| Same-day claims | 0.35 | More than 2 claims/day | Multiple claims on same date |
+| Monthly excess | 0.25 | More than ₹50,000/month | Monthly total exceeds threshold |
+| High-value claim | 0.20 | More than ₹25,000 | Single claim above threshold |
+| Alteration | 0.15 | Detected | Document tampering signals |
+| Provider concentration | 0.05 | More than 80% | All claims from one provider |
+
+#### Score-to-Action Mapping
+
+| Score | Action |
+|-------|--------|
+| 0.0 – 0.3 | PROCEED |
+| 0.3 – 0.5 | MANUAL_REVIEW (low priority) |
+| 0.5 – 0.8 | MANUAL_REVIEW (medium priority) |
+| 0.8 – 1.0 | MANUAL_REVIEW (high priority) |
+
+---
+
+### DecisionService
+
+**Location:** `backend/domain/decision/service.py`
+
+Aggregates all agent results into a final decision.
+
+#### Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `compute_decision` | verification, extraction, policy, fraud, degradation? | `DecisionResult` | Final decision |
+
+#### Decision Priority
+
+```
+MANUAL_REVIEW > REJECTED > PARTIAL > APPROVED
+```
+
+#### Confidence Calculation
+
+```
+confidence = extraction_confidence
+           × (passed_policy_checks / total_policy_checks)
+           × (1 - fraud_score × 0.3)
+           × (1 - degradation_penalty)
+```
+
+Degradation penalty: 15% per failed agent.
+
+---
+
+## Pipeline Agents
+
+### VerificationAgent
+
+**Location:** `backend/orchestrator/agents/verification_agent.py`
+
+**Input Context:**
+```python
+{
+    "claim_id": int,
+    "claim_category": str,
+    "documents": list[dict],
+}
+```
+
+**Output:**
+```python
+{
+    "is_valid": bool,
+    "errors": list[dict],
+    "warnings": list[dict],
+    "documents": list[dict],
+    "checks": list[dict],
+    "confidence": float,  # 0.0 or 1.0
+}
+```
+
+**Behavior:** Stops pipeline if `is_valid` is False.
+
+---
+
+### ExtractionAgent
+
+**Location:** `backend/orchestrator/agents/extraction_agent.py`
+
+**Input Context:**
+```python
+{
+    "claim_id": int,
+    "documents": list[dict],
+    "simulate_failure": bool,
+}
+```
+
+**Output:**
+```python
+{
+    "documents": list[dict],  # Extracted data per document
+    "overall_confidence": float,
+    "unextracted_fields": list[str],
+    "checks": list[dict],
+}
+```
+
+**Behavior:** Degrades on failure (confidence → 0.0, pipeline continues).
+
+---
+
+### PolicyAgent
+
+**Location:** `backend/orchestrator/agents/policy_agent.py`
+
+**Input Context:**
+```python
+{
+    "claim_id": int,
+    "member_id": str,
+    "claim_category": str,
+    "treatment_date": date,
+    "claimed_amount": Decimal,
+    "hospital_name": str | None,
+    "ytd_claims_amount": Decimal,
+    "documents": list[dict],  # Extracted data
+    "claims_history": list[dict] | None,
+}
+```
+
+**Output:**
+```python
+{
+    "decision": "APPROVED" | "PARTIAL" | "REJECTED",
+    "approved_amount": Decimal,
+    "checks": list[dict],
+    "rejection_reasons": list[str],
+    "line_items": list[dict],
+    "network_discount_applied": bool,
+    "confidence": float,
+}
+```
+
+**Behavior:** Evaluates 14 rules in order. First failure determines rejection reason.
+
+---
+
+### FraudAgent
+
+**Location:** `backend/orchestrator/agents/fraud_agent.py`
+
+**Input Context:**
+```python
+{
+    "claim_id": int,
+    "member_id": str,
+    "treatment_date": date,
+    "claimed_amount": Decimal,
+    "claims_history": list[dict] | None,
+}
+```
+
+**Output:**
+```python
+{
+    "fraud_score": float,  # 0.0 - 1.0
+    "signals": list[dict],
+    "recommendation": "PROCEED" | "MANUAL_REVIEW",
+    "priority": "NONE" | "LOW" | "MEDIUM" | "HIGH",
+    "checks": list[dict],
+    "ai_flags": list[str],
+}
+```
+
+**Behavior:** Never auto-rejects. Routes high-risk to MANUAL_REVIEW.
+
+---
+
+### DecisionAgent
+
+**Location:** `backend/orchestrator/agents/decision_agent.py`
+
+**Input Context:**
+```python
+{
+    "claim_id": int,
+    "verification": dict,
+    "extraction": dict,
+    "policy": dict,
+    "fraud": dict,
+    "degradation_info": dict | None,
+}
+```
+
+**Output:**
+```python
+{
+    "decision": "APPROVED" | "PARTIAL" | "REJECTED" | "MANUAL_REVIEW",
+    "approved_amount": Decimal,
+    "confidence_score": float,
+    "decision_reason": str,
+    "line_items": list[dict],
+    "rejection_reasons": list[str],
+    "manual_review_recommended": bool,
+    "degraded_components": list[str],
+    "fraud_score": float,
+}
+```
+
+**Behavior:** Aggregates all results. Rule-based decision is authoritative; AI is advisory.
+
+---
+
+## Provider Interfaces
+
+### ILLMProvider
+
+**Location:** `backend/providers/llm/interface.py`
+
+```python
+class ILLMProvider(ABC):
+    async def chat(self, request: LLMRequest) -> LLMResponse: ...
+    async def extract_structured(self, request: ExtractionRequest) -> ExtractionResponse: ...
+    async def health_check(self) -> bool: ...
+```
+
+**Implementations:** OpenAI, Anthropic, Google Gemini, Mock
+
+---
+
+### ICacheProvider
+
+**Location:** `backend/providers/cache/interface.py`
+
+```python
+class ICacheProvider(ABC):
+    async def get(self, key: str) -> str | None: ...
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None: ...
+    async def delete(self, key: str) -> None: ...
+    async def exists(self, key: str) -> bool: ...
+    async def flush(self) -> None: ...
+```
+
+**Implementations:** Redis, InMemory
+
+---
+
+### IStorageProvider
+
+**Location:** `backend/providers/storage/interface.py`
+
+```python
+class IStorageProvider(ABC):
+    async def upload(self, file: StoredFile) -> str: ...  # Returns file_id
+    async def download(self, file_id: str) -> StoredFile: ...
+    async def delete(self, file_id: str) -> None: ...
+    async def exists(self, file_id: str) -> bool: ...
+```
+
+**Implementations:** Local filesystem, MinIO, S3
+
+---
+
+### DatabaseSession
+
+**Location:** `backend/providers/db/session.py`
+
+```python
+class DatabaseSession:
+    def __init__(self, database_url: str): ...
+    async def create_all(self) -> None: ...
+    def session_factory(self) -> async_sessionmaker[AsyncSession]: ...
+```
+
+Pool: 10 connections, 20 overflow, 30s timeout, 1800s recycle.

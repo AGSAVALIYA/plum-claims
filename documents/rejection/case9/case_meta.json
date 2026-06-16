@@ -1,0 +1,13 @@
+{
+  "case_id": "case9",
+  "name": "Submission Deadline Exceeded \u2014 153 Days Late",
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-06-15",
+  "claimed_amount": 2000,
+  "hospital_name": "City Medical Centre",
+  "patient_name": "Rajesh Kumar",
+  "diagnosis": "Migraine with Aura (Classic Migraine) \u2014 Acute Episode",
+  "expected_rejection_reason": "SUBMISSION_DEADLINE_EXCEEDED",
+  "scenario": "Treatment on Jun 15, submitted in November \u2014 exceeds 30-day deadline by 153 days."
+}

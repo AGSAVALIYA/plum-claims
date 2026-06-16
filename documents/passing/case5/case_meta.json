@@ -1,0 +1,12 @@
+{
+  "case_id": "case5",
+  "name": "Dental \u2014 Composite Filling (Covered Procedure)",
+  "member_id": "EMP002",
+  "claim_category": "DENTAL",
+  "treatment_date": "2024-11-04",
+  "claimed_amount": 3000,
+  "hospital_name": "Smile Dental Clinic & Implant Centre",
+  "patient_name": "Priya Singh",
+  "diagnosis": "Dental Caries \u2014 Class I (Mandibular Right First Molar #46)",
+  "expected_decision": "APPROVED"
+}

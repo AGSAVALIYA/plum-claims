@@ -1,0 +1,12 @@
+{
+  "case_id": "case8",
+  "name": "Consultation \u2014 Upper Respiratory Infection",
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-08",
+  "claimed_amount": 3500,
+  "hospital_name": "Manipal Hospital",
+  "patient_name": "Rajesh Kumar",
+  "diagnosis": "Upper Respiratory Tract Infection (URTI) with Pharyngitis",
+  "expected_decision": "APPROVED"
+}

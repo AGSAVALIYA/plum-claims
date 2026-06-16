@@ -1,0 +1,13 @@
+{
+  "case_id": "case1",
+  "name": "Wrong Documents \u2014 Two Prescriptions, No Bill",
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-01",
+  "claimed_amount": 1500,
+  "hospital_name": "",
+  "patient_name": "Rajesh Kumar",
+  "diagnosis": "Viral Fever",
+  "expected_rejection_reason": "MISSING_REQUIRED",
+  "scenario": "Two prescriptions uploaded, hospital bill missing"
+}

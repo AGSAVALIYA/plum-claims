@@ -1,0 +1,13 @@
+{
+  "case_id": "case6",
+  "name": "Per-Claim Limit Exceeded \u2014 \u20b97,500 > \u20b95,000",
+  "member_id": "EMP003",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-10-20",
+  "claimed_amount": 7500,
+  "hospital_name": "Max Super Specialty Hospital",
+  "patient_name": "Amit Verma",
+  "diagnosis": "Acute Gastroenteritis with Moderate Dehydration",
+  "expected_rejection_reason": "PER_CLAIM_EXCEEDED",
+  "scenario": "Total \u20b97,500 exceeds per-claim limit of \u20b95,000."
+}

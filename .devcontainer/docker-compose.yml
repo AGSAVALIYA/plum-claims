@@ -1,0 +1,91 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/python:3.13
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://plum_admin:password123@db:5432/plum_claims
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - plum_net
+
+  db:
+    image: postgres:17-alpine3.22
+    restart: always
+    environment:
+      POSTGRES_USER: plum_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: plum_claims
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - plum_net
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - plum_net
+
+  # ── Observability ────────────────────────────────────────
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: plum_claims_jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: plum_claims_prometheus
+    volumes:
+      - ../infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9095:9090"
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: plum_claims_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ../infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  plum_net:

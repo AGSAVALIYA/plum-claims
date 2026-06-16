@@ -1,0 +1,280 @@
+---
+title: "Observability Guide"
+description: "Metrics, tracing, dashboards, and monitoring setup"
+---
+
+# Observability Guide
+
+## Overview
+
+The system has a complete observability stack:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   FastAPI    │────▶│   Jaeger    │     │  Grafana     │
+│   (OTLP)     │     │  (Traces)   │     │ (Dashboards) │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                                        ▲
+       ▼                                        │
+┌─────────────┐     ┌─────────────┐            │
+│  Prometheus  │◀────│  /metrics   │────────────┘
+│  (Scrape)    │     │  Endpoint   │
+└─────────────┘     └─────────────┘
+```
+
+## Health Endpoints
+
+### GET /health
+
+Returns service health status.
+
+```json
+{
+  "status": "healthy",
+  "service": "plum-claims",
+  "version": "0.1.0"
+}
+```
+
+### GET /ready
+
+Returns readiness with dependency checks.
+
+```json
+{
+  "status": "ready",
+  "checks": {
+    "database": "ok",
+    "redis": "ok",
+    "llm": "ok"
+  }
+}
+```
+
+Status is `ready` when all checks pass, `degraded` when any fail.
+
+### GET /metrics
+
+Returns Prometheus metrics in text format. Scrape interval: 10s (configured in Prometheus).
+
+## Business Metrics
+
+All metrics are prefixed with `plum_` and are available when `ENABLE_METRICS=true`.
+
+### Counters
+
+| Metric | Labels | Description |
+|--------|--------|-------------|
+| `plum_claims_submitted_total` | `category` | Total claims submitted |
+| `plum_claims_decided_total` | `decision` | Total claims decided |
+| `plum_llm_token_usage_total` | `model`, `direction` | LLM tokens used |
+| `plum_llm_cache_hits_total` | `model` | LLM cache hits |
+| `plum_llm_cache_misses_total` | `model` | LLM cache misses |
+| `plum_pipeline_errors_total` | `error_type` | Pipeline errors |
+
+### Histograms
+
+| Metric | Labels | Description |
+|--------|--------|-------------|
+| `plum_agent_execution_duration_seconds` | `agent`, `success` | Agent execution time |
+| `plum_agent_confidence_score` | `agent` | Agent confidence scores |
+| `plum_fraud_risk_score` | — | Fraud risk score distribution |
+| `plum_pipeline_duration_seconds` | — | Total pipeline execution time |
+
+### Example Queries
+
+```promql
+# Claims submitted per minute
+rate(plum_claims_submitted_total[5m])
+
+# Average agent duration by agent
+rate(plum_agent_execution_duration_seconds_sum[5m])
+/ rate(plum_agent_execution_duration_seconds_count[5m])
+
+# Approval rate
+plum_claims_decided_total{decision="APPROVED"}
+/ plum_claims_decided_total
+
+# P95 pipeline duration
+histogram_quantile(0.95, rate(plum_pipeline_duration_seconds_bucket[5m]))
+
+# Error rate
+rate(plum_pipeline_errors_total[5m])
+```
+
+## Distributed Tracing
+
+Traces are sent to Jaeger via OpenTelemetry OTLP when `ENABLE_TRACING=true`.
+
+### What Gets Traced
+
+- **FastAPI requests** — Automatic via `FastAPIInstrumentor`
+- **SQLAlchemy queries** — Automatic via `SQLAlchemyInstrumentor`
+- **Redis operations** — Automatic via `RedisInstrumentor`
+- **Pipeline agents** — Custom spans with timing, input/output, confidence
+
+### Trace Structure
+
+A single claim processing creates this trace:
+
+```
+POST /api/v1/claims
+└── process_claim_async (Celery task)
+    ├── verification_agent (0-2ms)
+    ├── extraction_agent (100-5000ms, depends on LLM)
+    ├── policy_agent (1-10ms)
+    ├── fraud_agent (0-5ms)
+    └── decision_agent (0-2ms)
+```
+
+### Viewing Traces
+
+{/* SCREENSHOT: Jaeger trace view */}
+
+1. Open Jaeger UI: `http://localhost:3059`
+2. Select service: `plum-claims`
+3. Click "Find Traces"
+4. Click on a trace to see the waterfall
+
+## Grafana Dashboard
+
+{/* SCREENSHOT: Grafana dashboard */}
+
+A pre-provisioned dashboard is available at `http://localhost:3063` (admin/admin).
+
+{/* SCREENSHOT: Admin dashboard with metrics */}
+
+### Dashboard Panels
+
+| Panel | Type | Shows |
+|-------|------|-------|
+| Claim Throughput | Timeseries | Claims submitted/decided per second |
+| Pipeline Duration | Timeseries | P50/P95/P99 pipeline execution time |
+| Agent Duration | Timeseries | P50 execution time per agent |
+| Approval Rate | Gauge | Percentage of approved claims |
+| Fraud Risk Score | Gauge | Average fraud risk score |
+| Manual Reviews | Stat | Count of MANUAL_REVIEW decisions |
+| Total Claims | Stat | Total claims submitted |
+| Pipeline Errors | Stat | Total pipeline errors |
+| LLM Cache | Timeseries | Cache hit/miss rates |
+| LLM Token Rate | Timeseries | Token usage by direction |
+| Decisions Breakdown | Piechart | Decision distribution |
+| Claims by Category | Timeseries | Submissions by category |
+| Agent Latency | Timeseries | P50/P95 per agent |
+| Service Health | Stat | Up/down status |
+
+### Data Sources
+
+- **Prometheus** — Configured as default datasource
+- **Jaeger** — Configured for distributed trace queries
+
+### Dashboard Location
+
+Provisioned from: `/workspace/infra/grafana/provisioning/dashboards/plum-claims-main.json`
+
+## Prometheus Configuration
+
+Scrape config: `/workspace/infra/prometheus/prometheus.yml`
+
+```yaml
+scrape_configs:
+  - job_name: 'plum-claims-app'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['app:8000']
+        labels:
+          env: production
+
+  - job_name: 'prometheus'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9090']
+```
+
+## Structured Logging
+
+Logs are output in JSON format (configurable via `LOG_FORMAT`).
+
+### Log Fields
+
+Every log entry includes:
+- `timestamp` — ISO 8601
+- `level` — INFO, WARNING, ERROR
+- `event` — Event name (e.g., `claim_submitted`, `agent_completed`)
+- `logger` — Logger name
+
+### PHI/PII Redaction
+
+Sensitive fields are automatically redacted:
+- Patient names → `[REDACTED]`
+- Doctor names → `[REDACTED]`
+- Diagnosis → `[REDACTED]`
+- Medications → `[REDACTED]`
+
+### Correlation IDs
+
+Every request gets a `X-Request-Id` header (12-char UUID). This ID is propagated to all logs within the request context, enabling request tracing across services.
+
+### Example Log Entry
+
+```json
+{
+  "timestamp": "2026-06-15T12:00:00Z",
+  "level": "info",
+  "event": "claim_submitted",
+  "logger": "backend.api.v1.claims",
+  "claim_id": 123,
+  "member_id": "EMP001",
+  "category": "CONSULTATION",
+  "amount": 1500,
+  "x_request_id": "abc123def456"
+}
+```
+
+## Alerting (Recommended)
+
+### Critical Alerts
+
+| Alert | Condition | Action |
+|-------|-----------|--------|
+| Pipeline errors | `rate(plum_pipeline_errors_total[5m]) > 0.1` | Check agent logs |
+| High latency | `histogram_quantile(0.95, plum_pipeline_duration_seconds) > 30` | Check LLM provider |
+| Low approval rate | `plum_claims_decided_total{decision="APPROVED"} / plum_claims_decided_total < 0.3` | Review policy rules |
+| LLM cache miss | `rate(plum_llm_cache_misses_total[5m]) > rate(plum_llm_cache_hits_total[5m])` | Check cache health |
+
+### Warning Alerts
+
+| Alert | Condition | Action |
+|-------|-----------|--------|
+| High fraud scores | `avg(plum_fraud_risk_score) > 0.5` | Review fraud rules |
+| Manual review spike | `rate(plum_claims_decided_total{decision="MANUAL_REVIEW"}[1h]) > 10` | Check queue |
+| Agent degradation | `plum_agent_confidence_score < 0.5` | Check agent health |
+
+## Troubleshooting
+
+### No metrics appearing
+
+1. Check `ENABLE_METRICS=true` in `.env`
+2. Verify server restarted after config change
+3. Check `/metrics` endpoint directly
+4. Verify Prometheus is scraping (`http://localhost:3062/targets`)
+
+### No traces in Jaeger
+
+1. Check `ENABLE_TRACING=true` in `.env`
+2. Verify `OTEL_EXPORTER_OTLP_ENDPOINT` is reachable
+3. Check Jaeger UI for service `plum-claims`
+4. Verify server restarted after config change
+
+### Dashboard shows "No data"
+
+1. Verify Prometheus datasource is configured in Grafana
+2. Check Prometheus targets are UP
+3. Submit a test claim to generate metrics
+4. Wait 10-15 seconds for scrape interval
+
+### Logs not appearing
+
+1. Check `LOG_LEVEL` setting
+2. Check `LOG_FORMAT` (json vs console)
+3. Verify stdout is not being buffered

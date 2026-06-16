@@ -1,0 +1,13 @@
+{
+  "case_id": "case5",
+  "name": "Excluded Condition \u2014 Obesity Bariatric",
+  "member_id": "EMP009",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-10-18",
+  "claimed_amount": 8000,
+  "hospital_name": "Wellness & Metabolic Clinic, Mumbai",
+  "patient_name": "Anita Desai",
+  "diagnosis": "Morbid Obesity (BMI 37.0) with Metabolic Syndrome",
+  "expected_rejection_reason": "EXCLUDED_CONDITION",
+  "scenario": "Obesity/bariatric treatment explicitly excluded."
+}

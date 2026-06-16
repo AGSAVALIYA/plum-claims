@@ -1,0 +1,13 @@
+export { default as Slide01Title } from "./01-title";
+export { default as Slide02Problem } from "./02-problem";
+export { default as Slide03Architecture } from "./03-architecture";
+export { default as Slide04CodeStructure } from "./04-code-structure";
+export { default as Slide05Pipeline } from "./05-pipeline";
+export { default as Slide06LangChain } from "./06-langchain";
+export { default as Slide07LLM } from "./07-llm";
+export { default as Slide08Observability } from "./08-observability";
+export { default as Slide09Grafana } from "./09-grafana";
+export { default as Slide11AITools } from "./11-ai-tools";
+export { default as Slide12Challenges } from "./12-challenges";
+export { default as Slide13Metrics } from "./13-metrics";
+export { default as Slide14Summary } from "./14-summary";

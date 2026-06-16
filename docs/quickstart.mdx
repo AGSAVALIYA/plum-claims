@@ -1,0 +1,85 @@
+---
+title: "Quickstart"
+description: "Get the Plum Claims system running locally in 5 minutes."
+keywords: ["setup", "install", "quickstart", "docker"]
+---
+
+# Quickstart
+
+Get the full system running locally with Docker Compose.
+
+## Prerequisites
+
+- Docker and Docker Compose
+- An LLM API key (Google Gemini, OpenAI, or Anthropic)
+
+## Steps
+
+<Steps>
+  <Step title="Clone and configure">
+    Copy the environment template and add your API keys:
+    ```bash
+    cp .env.example .env
+    # Edit .env and set at least one LLM provider API key
+    ```
+  </Step>
+  <Step title="Start all services">
+    ```bash
+    docker compose up -d
+    ```
+    This starts: PostgreSQL, Redis, the FastAPI backend, Celery worker, Jaeger, Prometheus, and Grafana.
+  </Step>
+  <Step title="Seed the database">
+    ```bash
+    docker compose exec app python scripts/seed_data.py
+    ```
+    This loads members from `assignment/policy_terms.json` and creates demo accounts.
+  </Step>
+  <Step title="Open the app">
+    - **Frontend**: http://localhost:3052
+    - **Backend API**: http://localhost:3051/docs
+    - **Admin dashboard**: http://localhost:3052/admin
+  </Step>
+</Steps>
+
+## Demo credentials
+
+| Account | Member ID | Password | Role |
+|---------|-----------|----------|------|
+| Rajesh Kumar | EMP001 | pass001 | Member |
+| Priya Singh | EMP002 | pass002 | Member |
+| Admin | ADMIN001 | admin123 | Admin |
+
+## Submit a test claim
+
+<Steps>
+  <Step title="Log in as EMP001">
+    Go to http://localhost:3052/login and log in with `EMP001` / `pass001`.
+  </Step>
+  <Step title="Submit a claim">
+    Fill in the claim form:
+    - Category: Consultation
+    - Amount: 1500
+    - Upload a prescription image and a hospital bill image
+  </Step>
+  <Step title="Watch it process">
+    The claim auto-polls every 3 seconds. You'll see it move through:
+    SUBMITTED → PROCESSING → DECIDED
+  </Step>
+  <Step title="View the decision">
+    Click the claim to see the decision, approved amount, reasoning, and full processing trace.
+  </Step>
+</Steps>
+
+## Health checks
+
+```bash
+# Backend health
+curl http://localhost:3051/health
+
+# Readiness (DB, Redis, LLM)
+curl http://localhost:8000/ready
+
+# Prometheus metrics
+curl http://localhost:8000/metrics
+```

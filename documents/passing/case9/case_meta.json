@@ -1,0 +1,12 @@
+{
+  "case_id": "case9",
+  "name": "Diagnostic \u2014 Comprehensive Health Package",
+  "member_id": "EMP007",
+  "claim_category": "DIAGNOSTIC",
+  "treatment_date": "2024-11-09",
+  "claimed_amount": 1800,
+  "hospital_name": "Thyrocare Technologies Ltd (Mumbai Central Lab)",
+  "patient_name": "Suresh Patil",
+  "diagnosis": "Routine Health Screening \u2014 Borderline dyslipidemia noted",
+  "expected_decision": "APPROVED"
+}

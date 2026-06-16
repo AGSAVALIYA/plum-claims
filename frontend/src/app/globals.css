@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Design Tokens: Clinical Precision ────────────────────────
+   Health Insurance Claims Platform
+   Palette: Deep teal + warm beige + coral rose
+   Grounded in medical trust + human warmth
+   ─────────────────────────────────────────────────────────── */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-status-approved: var(--status-approved);
+  --color-status-warning: var(--status-warning);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-info: var(--status-info);
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-scale-in: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Light Mode: Warm & Trustworthy ────────────────────────── */
+
+:root {
+  --background: #F9F7F4;
+  --foreground: #1A1D1C;
+  --card: #FFFFFF;
+  --card-foreground: #1A1D1C;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1D1C;
+  --primary: #0D6B6E;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8D5C4;
+  --secondary-foreground: #1A1D1C;
+  --muted: #F0EDE8;
+  --muted-foreground: #6B6560;
+  --accent: #D45161;
+  --accent-foreground: #FFFFFF;
+  --destructive: #D45161;
+  --destructive-foreground: #FFFFFF;
+  --border: #E0DCD5;
+  --input: #E0DCD5;
+  --ring: #0D6B6E;
+  --chart-1: #0D6B6E;
+  --chart-2: #D45161;
+  --chart-3: #2D8B6E;
+  --chart-4: #E8A838;
+  --chart-5: #7EC3C3;
+  --status-approved: #2D8B6E;
+  --status-warning: #E8A838;
+  --status-rejected: #D45161;
+  --status-info: #0D6B6E;
+  --radius: 0.75rem;
+  --sidebar: #0D2223;
+  --sidebar-foreground: #D4EBEB;
+  --sidebar-primary: #D45161;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #122E2F;
+  --sidebar-accent-foreground: #ECF5F5;
+  --sidebar-border: #1A3B3C;
+  --sidebar-ring: #D45161;
+}
+
+/* ── Dark Mode ──────────────────────────────────────────────── */
+
+.dark {
+  --background: #111615;
+  --foreground: #E8E4DE;
+  --card: #1A1E1D;
+  --card-foreground: #E8E4DE;
+  --popover: #1A1E1D;
+  --popover-foreground: #E8E4DE;
+  --primary: #3EC1C5;
+  --primary-foreground: #021516;
+  --secondary: #3A3026;
+  --secondary-foreground: #E8E4DE;
+  --muted: #1E2120;
+  --muted-foreground: #9E9890;
+  --accent: #E56A76;
+  --accent-foreground: #FFFFFF;
+  --destructive: #E56A76;
+  --destructive-foreground: #FFFFFF;
+  --border: #2A2D2C;
+  --input: #2A2D2C;
+  --ring: #3EC1C5;
+  --status-approved: #3EC1C5;
+  --status-warning: #E8A838;
+  --status-rejected: #E56A76;
+  --status-info: #3EC1C5;
+  --chart-1: #3EC1C5;
+  --chart-2: #E56A76;
+  --chart-3: #3EC1C5;
+  --chart-4: #E8A838;
+  --chart-5: #7EC3C3;
+  --sidebar: #0A1516;
+  --sidebar-foreground: #D4EBEB;
+  --sidebar-primary: #E56A76;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #111E1F;
+  --sidebar-accent-foreground: #ECF5F5;
+  --sidebar-border: #1A2E2F;
+  --sidebar-ring: #E56A76;
+}
+
+/* ── Base ───────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* ── Reduced Motion ─────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Keyframes ──────────────────────────────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(13 107 110 / 0.3); }
+  50% { box-shadow: 0 0 0 16px rgb(13 107 110 / 0); }
+}

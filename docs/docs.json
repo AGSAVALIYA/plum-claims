@@ -1,0 +1,71 @@
+{
+  "name": "AI Claims Processing",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Overview",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "quickstart"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Architecture",
+        "groups": [
+          {
+            "group": "System Design",
+            "pages": [
+              "architecture/overview",
+              "architecture/pipeline",
+              "architecture/backend",
+              "architecture/frontend",
+              "architecture/database",
+              "architecture/component-contracts"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "How It Works",
+            "pages": [
+              "guides/claim-flow",
+              "guides/document-processing",
+              "guides/policy-rules",
+              "guides/fraud-detection"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "guides/configuration",
+              "guides/testing",
+              "guides/observability",
+              "guides/migrations"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "guides/eval-report",
+              "guides/api-reference"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "theme": "mint",
+  "colors": {
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4f46e5"
+  }
+}

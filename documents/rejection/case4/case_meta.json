@@ -1,0 +1,13 @@
+{
+  "case_id": "case4",
+  "name": "Waiting Period \u2014 Diabetes (EMP005 joined Sep 2024)",
+  "member_id": "EMP005",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-10-15",
+  "claimed_amount": 3000,
+  "hospital_name": "City Medical Centre, Bengaluru",
+  "patient_name": "Vikram Joshi",
+  "diagnosis": "Type 2 Diabetes Mellitus (T2DM) \u2014 Newly Diagnosed",
+  "expected_rejection_reason": "WAITING_PERIOD",
+  "scenario": "EMP005 joined 2024-09-01. Claims for diabetes on 2024-10-15 \u2014 within 90-day waiting period."
+}

@@ -1,0 +1,193 @@
+---
+title: "Database Migrations"
+description: "Alembic migration setup, creating and applying migrations"
+---
+
+# Database Migrations
+
+## Overview
+
+The project uses [Alembic](https://alembic.sqlalchemy.org/) for database schema migrations, configured with async SQLAlchemy support.
+
+## Configuration
+
+**Alembic config:** `/workspace/backend/alembic.ini`
+**Migration scripts:** `/workspace/backend/alembic/versions/`
+**Env module:** `/workspace/backend/alembic/env.py`
+
+## Running Migrations
+
+### Apply All Migrations
+
+```bash
+cd /workspace
+uv run alembic -c backend/alembic.ini upgrade head
+```
+
+### Check Current Version
+
+```bash
+uv run alembic -c backend/alembic.ini current
+```
+
+### View Migration History
+
+```bash
+uv run alembic -c backend/alembic.ini history
+```
+
+### Downgrade One Step
+
+```bash
+uv run alembic -c backend/alembic.ini downgrade -1
+```
+
+### Downgrade to Specific Version
+
+```bash
+uv run alembic -c backend/alembic.ini downgrade <revision_id>
+```
+
+## Existing Migrations
+
+### 001_initial_schema
+
+**File:** `001_initial_schema.py`
+**Tables created:**
+- `members` — Member records with demographics
+- `member_claims_summary` — Aggregated claims data per member/year
+- `claims` — Claim records with decisions
+- `claim_documents` — Documents attached to claims
+- `claim_line_items` — Extracted line items
+- `claim_processing_steps` — Pipeline step audit trail
+- `policies` — Policy data (unused, loaded from JSON)
+
+### 002_add_password_hash
+
+**File:** `002_add_password_hash.py`
+**Changes:**
+- Adds `password_hash` column to `members` table
+
+### 003_add_events_retry_and_member_role
+
+**File:** `003_add_events_retry_and_member_role.py`
+**Changes:**
+- Creates `claim_events` table (audit trail)
+- Creates `claim_retry_attempts` table (retry history)
+- Adds `role` column to `members` table (member/admin/reviewer)
+
+## Creating New Migrations
+
+### Auto-generate from Model Changes
+
+```bash
+# After modifying SQLAlchemy models
+uv run alembic -c backend/alembic.ini revision --autogenerate -m "description_of_changes"
+```
+
+### Manual Migration
+
+```bash
+# Create empty migration file
+uv run alembic -c backend/alembic.ini revision -m "description_of_changes"
+```
+
+Then edit the generated file in `alembic/versions/`.
+
+## Migration File Template
+
+```python
+"""description_of_changes.
+
+Revision ID: abc123
+Revises: def456
+Create Date: 2026-06-15 12:00:00.000000
+"""
+
+from typing import Sequence, Union
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers
+revision: str = 'abc123'
+down_revision: Union[str, None] = 'def456'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Apply changes."""
+    op.add_column('claims', sa.Column('new_field', sa.String(100), nullable=True))
+
+
+def downgrade() -> None:
+    """Revert changes."""
+    op.drop_column('claims', 'new_field')
+```
+
+## Best Practices
+
+1. **Always test migrations** — Run on a copy of production data first
+2. **Keep migrations small** — One logical change per migration
+3. **Write reversible migrations** — Always implement `downgrade()`
+4. **Use server_default for new columns** — Avoid NULL issues on existing rows
+5. **Don't modify migration files after applying** — Create a new migration instead
+
+## Database Seeding
+
+After migrations, seed the database with initial data:
+
+```bash
+uv run python scripts/seed_data.py
+```
+
+This loads:
+- 12 members from `policy_terms.json`
+- Default passwords (pass001-pass010, admin123)
+- Admin account (ADMIN001)
+
+## Troubleshooting
+
+### "Can't locate revision"
+
+The migration history is corrupted. Reset with:
+
+```bash
+uv run alembic -c backend/alembic.ini stamp head
+```
+
+### "Table already exists"
+
+The database has tables not tracked by Alembic. Either:
+1. Drop the database and recreate
+2. Stamp the current state: `alembic stamp head`
+
+### Async Connection Issues
+
+The Alembic env uses async SQLAlchemy. If you get connection errors:
+1. Check `DATABASE_URL` in `.env`
+2. Ensure PostgreSQL is running
+3. Verify network connectivity
+
+## Schema Diagram
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌──────────────────┐
+│   members   │────▶│     claims      │────▶│ claim_documents  │
+│             │     │                 │     └──────────────────┘
+│ member_id   │     │ claim_id        │
+│ name        │     │ member_id (FK)  │     ┌──────────────────┐
+│ password    │     │ decision        │────▶│ claim_line_items │
+│ role        │     │ status          │     └──────────────────┘
+└─────────────┘     │ processing_trace│
+       │            └─────────────────┘     ┌──────────────────┐
+       │                     │              │claim_proc_steps  │
+       ▼                     │              └──────────────────┘
+┌─────────────┐              │
+│member_claims│              │              ┌──────────────────┐
+│  _summary   │              └─────────────▶│   claim_events   │
+└─────────────┘                             └──────────────────┘
+                                            ┌──────────────────┐
+                                            │claim_retry_attempts│
+                                            └──────────────────┘
+```

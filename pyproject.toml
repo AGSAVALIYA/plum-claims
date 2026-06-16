@@ -1,0 +1,90 @@
+[project]
+name = "plum-claims"
+version = "0.1.0"
+description = "AI-powered health insurance claims processing system"
+requires-python = ">=3.13"
+dependencies = [
+    # Web Framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "python-multipart>=0.0.18",
+    # Database
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    # Cache
+    "redis[hiredis]>=5.2.0",
+    # Task Queue
+    "celery>=5.4.0",
+    # Validation
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    # LLM Providers
+    "openai>=1.60.0",
+    "anthropic>=0.42.0",
+    # Document Processing
+    "pillow>=11.0.0",
+    "opencv-python-headless>=4.10.0",
+    # Resilience
+    "tenacity>=9.0.0",
+    "httpx>=0.28.0",
+    # Observability
+    "structlog>=24.4.0",
+    "opentelemetry-api>=1.28.0",
+    "opentelemetry-sdk>=1.28.0",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.49b0",
+    "opentelemetry-instrumentation-redis>=0.49b0",
+    "opentelemetry-exporter-otlp>=1.28.0",
+    # Utilities
+    "python-dateutil>=2.9.0",
+    "aiofiles>=24.1.0",
+    "pyjwt>=2.13.0",
+    "prometheus-client>=0.25.0",
+    "fpdf2>=2.8.7",
+    "pytest-asyncio>=1.4.0",
+    "pluggy>=1.6.0",
+    "aiosqlite>=0.22.1",
+    "google-genai>=2.8.0",
+    "opentelemetry-exporter-prometheus>=0.63b1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "aiosqlite>=0.20.0",
+    "httpx>=0.28.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle
+    "I",              # isort
+    "N",              # pep8-naming
+    "B",              # flake8-bugbear
+    "SIM",            # flake8-simplify
+    "UP",             # pyupgrade
+    "ASYNC",          # flake8-async
+    "RUF",            # ruff specific
+]
+ignore = ["N818"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]

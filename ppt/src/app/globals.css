@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #0A1516;
+  --color-foreground: #E8EDE9;
+  --color-primary: #3EC1C5;
+  --color-primary-foreground: #0A1516;
+  --color-secondary: #1A2A2C;
+  --color-muted: #6B8A8C;
+  --color-muted-foreground: #8BA4A6;
+  --color-accent: #E56A76;
+  --color-accent-foreground: #0A1516;
+  --color-success: #3EC1C5;
+  --color-warning: #F0A85A;
+  --color-destructive: #E56A76;
+  --color-border: #1E3538;
+  --color-card: #0D1F21;
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Geist", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+/* Slide container */
+.slide-wrapper {
+  width: 100vw;
+  min-height: 100dvh;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+}
+
+/* Navigation dots */
+.nav-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.nav-dot.active {
+  background: var(--color-primary);
+  transform: scale(1.4);
+  box-shadow: 0 0 12px var(--color-primary);
+}
+
+/* Mermaid diagrams */
+.mermaid-container svg {
+  max-width: 100%;
+  max-height: 60vh;
+}
+
+/* Code blocks */
+.code-block {
+  background: #0A1516;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-foreground);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Placeholder image */
+.placeholder-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Keyboard hint */
+.keyboard-hint {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.5rem;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  opacity: 0.5;
+  z-index: 100;
+}
+
+.audio-player-bar {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  width: 90%;
+  max-width: 600px;
+}
+
+.audio-player-bar input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.audio-player-bar input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+}
+
+.transcript-text {
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Code block */
+.code-block-wrapper {
+  position: relative;
+}
+
+.code-block-scrollable {
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.code-block-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.code-block-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-block-scrollable::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+/* Progress bar */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: var(--color-primary);
+  z-index: 200;
+  transition: width 0.5s ease;
+}

@@ -1,0 +1,181 @@
+---
+title: "Configuration Reference"
+description: "Complete reference for all environment variables and configuration options"
+---
+
+# Configuration Reference
+
+All configuration is managed via environment variables, loaded from a `.env` file in the backend directory.
+Settings use [Pydantic BaseSettings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) with type validation.
+
+## Environment File
+
+The `.env` file is loaded from the working directory. The server CWD is `/workspace/backend`, so the file should be at `/workspace/backend/.env`.
+
+A template is provided at `/workspace/backend/.env.example`.
+
+## Application Settings
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `APP_ENV` | `development\|staging\|production` | `development` | Runtime environment |
+| `APP_DEBUG` | `bool` | `true` | Enable debug mode (verbose errors, auto-reload) |
+| `CORS_ORIGINS` | `str` | `http://localhost:3000` | Comma-separated allowed CORS origins |
+| `API_PREFIX` | `str` | `/api/v1` | URL prefix for all API routes |
+
+## Database
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `DATABASE_URL` | `str` | `postgresql+asyncpg://plum_admin:password123@db:5432/plum_claims` | Async PostgreSQL connection string |
+| `DATABASE_ECHO` | `bool` | `false` | Log all SQL queries (verbose) |
+
+**Connection pool settings** (hardcoded in `providers/db/session.py`):
+- Pool size: 10
+- Max overflow: 20
+- Pool timeout: 30s
+- Pool recycle: 1800s
+
+## Redis / Cache
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `REDIS_URL` | `str` | `redis://redis:6379/0` | Redis connection URL |
+| `REDIS_ENABLED` | `bool` | `true` | Enable Redis (falls back to in-memory cache if false) |
+
+Redis is used for:
+- LLM response caching (content-addressable via SHA-256)
+- Rate limiting (sorted-set sliding window)
+- Celery message broker
+
+## LLM Provider
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `LLM_PROVIDER` | `openai\|anthropic\|google\|mock` | `mock` | LLM backend provider |
+| `OPENAI_API_KEY` | `str` | `""` | OpenAI API key |
+| `OPENAI_MODEL` | `str` | `gpt-4o` | OpenAI model name |
+| `OPENAI_BASE_URL` | `str` | `""` | Custom OpenAI-compatible base URL (e.g., for DeepSeek) |
+| `ANTHROPIC_API_KEY` | `str` | `""` | Anthropic API key |
+| `ANTHROPIC_MODEL` | `str` | `claude-sonnet-4-20250514` | Anthropic model name |
+| `GEMINI_API_KEY` | `str` | `""` | Google Gemini API key |
+| `GEMINI_MODEL` | `str` | `gemini-2.0-flash` | Gemini model name |
+
+**Provider behavior:**
+- `mock` — Returns deterministic test responses, no API calls. Used for testing.
+- `openai` — Supports any OpenAI-compatible API via `OPENAI_BASE_URL`
+- `anthropic` — Claude models via Anthropic SDK
+- `google` — Gemini models via Google GenAI SDK
+
+LLM responses are cached in Redis (when enabled) using content-addressable keys.
+
+## Document Processing
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `DOCUMENT_PROCESSOR` | `hybrid\|docling_only\|vision_only` | `hybrid` | Document processing strategy |
+| `DOCLING_OCR_ENGINE` | `str` | `easyocr` | OCR engine for Docling processor |
+
+**Processing strategies:**
+- `hybrid` — Try Docling OCR first, fall back to vision LLM
+- `docling_only` — Only use Docling (fails if OCR can't parse)
+- `vision_only` — Only use vision LLM (more expensive, more accurate)
+
+## File Storage
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `STORAGE_PROVIDER` | `local\|minio\|s3` | `local` | File storage backend |
+| `STORAGE_PATH` | `str` | `/workspace/backend/uploads` | Local storage directory (only for `local` provider) |
+
+**Storage providers:**
+- `local` — Filesystem storage in `STORAGE_PATH`
+- `minio` — S3-compatible MinIO (requires MinIO service running)
+- `s3` — AWS S3 (requires AWS credentials)
+
+Allowed file types: `application/pdf`, `image/jpeg`, `image/png`. Max size: 10 MB.
+
+## Observability
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `LOG_LEVEL` | `str` | `INFO` | Log level (DEBUG, INFO, WARNING, ERROR) |
+| `LOG_FORMAT` | `json\|console` | `json` | Log output format |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `str` | `http://localhost:4317` | OpenTelemetry OTLP endpoint |
+| `OTEL_SERVICE_NAME` | `str` | `plum-claims` | Service name for traces/metrics |
+| `ENABLE_TRACING` | `bool` | `true` | Enable distributed tracing (Jaeger) |
+| `ENABLE_METRICS` | `bool` | `true` | Enable Prometheus metrics |
+
+**What gets instrumented:**
+- FastAPI requests (via `FastAPIInstrumentor`)
+- SQLAlchemy queries (via `SQLAlchemyInstrumentor`)
+- Redis operations (via `RedisInstrumentor`)
+- All 5 pipeline agents (custom spans)
+- Business metrics (10 custom counters/histograms)
+
+## Security
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `JWT_SECRET_KEY` | `str` | `dev-secret-change-in-production` | JWT signing secret |
+| `JWT_ALGORITHM` | `str` | `HS256` | JWT algorithm |
+| `JWT_EXPIRY_MINUTES` | `int` | `60` | Token time-to-live |
+| `RATE_LIMIT_PER_MINUTE` | `int` | `60` | Per-client API rate limit |
+
+**Important:** Change `JWT_SECRET_KEY` in production!
+
+## Rate Limiting
+
+The rate limiter uses a sliding-window algorithm:
+- Keyed by member ID (from JWT) or client IP
+- Uses Redis sorted-set when available, falls back to in-memory
+- Skips health/docs endpoints: `/health`, `/docs`, `/redoc`, `/openapi.json`
+- Returns `429 Too Many Requests` with `RATE_LIMIT_EXCEEDED` code
+
+## Example .env for Local Development
+
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://plum_admin:password123@localhost:5432/plum_claims
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+REDIS_ENABLED=true
+
+# LLM (use mock for testing without API keys)
+LLM_PROVIDER=mock
+
+# Observability
+ENABLE_TRACING=true
+ENABLE_METRICS=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+LOG_FORMAT=console
+
+# Security
+JWT_SECRET_KEY=your-secret-key-here
+```
+
+## Example .env for Production
+
+```bash
+APP_ENV=production
+APP_DEBUG=false
+CORS_ORIGINS=https://claims.yourcompany.com
+
+DATABASE_URL=postgresql+asyncpg://user:pass@db-host:5432/plum_claims
+REDIS_URL=redis://redis-host:6379/0
+
+LLM_PROVIDER=google
+GEMINI_API_KEY=your-key-here
+
+STORAGE_PROVIDER=s3
+
+ENABLE_TRACING=true
+ENABLE_METRICS=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+LOG_FORMAT=json
+LOG_LEVEL=WARNING
+
+JWT_SECRET_KEY=generate-a-strong-random-secret
+RATE_LIMIT_PER_MINUTE=120
+```

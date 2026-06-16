@@ -1,0 +1,318 @@
+---
+title: "Testing Guide"
+description: "How to run tests, write new tests, and use test fixtures"
+---
+
+# Testing Guide
+
+## Overview
+
+The project has two levels of testing:
+
+1. **Unit/Integration Tests** (`backend/tests/`) — pytest with async support, in-memory SQLite, mock LLM
+2. **E2E Evaluation** (`scripts/run_eval.py`) — Runs all 12 test cases against the live API
+
+## Quick Start
+
+```bash
+# Run all unit tests
+uv run pytest backend/tests/ -v
+
+# Run with coverage
+uv run pytest backend/tests/ -v --cov=backend --cov-report=term-missing
+
+# Run a specific test file
+uv run pytest backend/tests/test_claim_pipeline.py -v
+
+# Run a specific test
+uv run pytest backend/tests/test_claim_pipeline.py::test_tc004_clean_consultation -v
+
+# Run E2E eval (requires running server)
+uv run python scripts/run_eval.py
+```
+
+## Test Configuration
+
+Configured in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+```
+
+- **asyncio_mode = "auto"** — All async tests run automatically without `@pytest.mark.asyncio`
+- **pythonpath** — Adds `backend` to Python path for imports
+
+## Test Fixtures
+
+All fixtures are defined in `backend/tests/conftest.py`.
+
+### Database Fixture
+
+```python
+@pytest.fixture
+async def db_session():
+    """In-memory SQLite database, fresh per test."""
+    # Creates all tables, yields session, drops all tables after test
+```
+
+Each test gets a completely isolated database. No data leaks between tests.
+
+### Policy Data Fixture
+
+```python
+@pytest.fixture
+def policy_data():
+    """Loads policy_terms.json for test assertions."""
+    with open("/workspace/assignment/policy_terms.json") as f:
+        return json.load(f)
+```
+
+### Mock LLM Fixture
+
+```python
+@pytest.fixture(autouse=True)
+def force_mock_llm():
+    """Forces LLM_PROVIDER=mock for all tests."""
+    os.environ["LLM_PROVIDER"] = "mock"
+```
+
+This is `autouse=True` — every test automatically uses the mock LLM provider. No API keys needed.
+
+### Sample Document Fixtures
+
+```python
+@pytest.fixture
+def sample_consultation_docs():
+    """Valid consultation documents (prescription + hospital bill)."""
+
+@pytest.fixture
+def sample_wrong_type_docs():
+    """Two prescriptions (wrong for consultation)."""
+```
+
+### DI Container Reset
+
+```python
+@pytest.fixture(autouse=True)
+def reset_container():
+    """Resets the DI container before each test."""
+    from backend.core.container import Container
+    Container.reset()
+```
+
+## Test Files
+
+### test_claim_pipeline.py (13 tests)
+
+End-to-end pipeline tests using the orchestrator directly. Tests all 12 assignment test cases:
+
+| Test | TC | Scenario | Expected |
+|------|----|----------|----------|
+| `test_tc001_wrong_document` | TC001 | Two prescriptions, no bill | DOCUMENT_ERROR |
+| `test_tc002_unreadable_document` | TC002 | Blurry pharmacy bill | DOCUMENT_ERROR |
+| `test_tc003_patient_mismatch` | TC003 | Different patient names | DOCUMENT_ERROR |
+| `test_tc004_clean_consultation` | TC004 | Valid consultation | APPROVED |
+| `test_tc005_waiting_period` | TC005 | Diabetes within 90 days | REJECTED |
+| `test_tc006_dental_partial` | TC006 | Dental with cosmetic | PARTIAL |
+| `test_tc007_pre_auth_required` | TC007 | MRI without pre-auth | REJECTED |
+| `test_tc008_per_claim_limit` | TC008 | Amount exceeds limit | REJECTED |
+| `test_tc009_fraud_signal` | TC009 | Multiple same-day claims | MANUAL_REVIEW |
+| `test_tc010_network_discount` | TC010 | Network hospital | APPROVED |
+| `test_tc11_graceful_degradation` | TC011 | Component failure | APPROVED |
+| `test_tc012_excluded_treatment` | TC012 | Obesity treatment | REJECTED |
+
+### test_policy_service.py (17 tests)
+
+Unit tests for `PolicyService` methods:
+- Category coverage checks
+- Sub-limit calculations
+- Co-pay percentages
+- Network discount
+- Per-claim, annual, family-floater limits
+- Waiting periods (initial, condition-specific, passed)
+- Exclusions (obesity, bariatric)
+- Pre-authorization (MRI)
+- Dental procedures
+- Document requirements
+
+### test_document_verification.py (5 tests)
+
+Tests for `DocumentService.verify_documents()`:
+- Valid documents pass
+- Wrong document type detected
+- Unreadable document detected
+- Patient name mismatch detected
+- Missing required document detected
+
+### test_advanced_policy_rules.py (3 tests)
+
+Integration tests for complex policy scenarios:
+- Exclusion applied before discount/co-pay math
+- Pharmacy branded drug 30% co-pay
+- Alternative medicine sessions limit exceeded
+
+## Writing New Tests
+
+### Test Naming Convention
+
+```python
+async def test_<descriptive_name>():
+    """One-line description of what this test verifies."""
+```
+
+### Pattern: Pipeline Test
+
+```python
+async def test_new_scenario(db_session, sample_docs):
+    """Test a specific claim scenario."""
+    # Arrange
+    from backend.orchestrator.engine import ClaimOrchestrator
+
+    orchestrator = ClaimOrchestrator(db_session)
+
+    # Act
+    result = await orchestrator.process_claim(
+        claim_id=1,
+        member_id="EMP001",
+        policy_id="PLUM_GHI_2024",
+        claim_category="CONSULTATION",
+        treatment_date=date(2026, 6, 4),
+        claimed_amount=Decimal("1500"),
+        documents=sample_docs,
+    )
+
+    # Assert
+    assert result["decision"] == "APPROVED"
+    assert result["approved_amount"] == Decimal("1350")  # After 10% co-pay
+```
+
+### Pattern: Policy Service Test
+
+```python
+async def test_policy_rule(db_session, policy_data):
+    """Test a specific policy rule."""
+    from backend.domain.policy.service import PolicyService
+
+    service = PolicyService(policy_data)
+
+    # Test waiting period
+    result = service.is_within_waiting_period(
+        join_date=date(2026, 4, 15),
+        treatment_date=date(2026, 6, 4),
+        diagnosis="Type 2 Diabetes Mellitus",
+    )
+
+    assert result.is_within_period is True
+    assert result.eligible_from == date(2026, 7, 14)
+```
+
+### Pattern: Document Verification Test
+
+```python
+async def test_document_check(db_session):
+    """Test document verification logic."""
+    from backend.domain.documents.service import DocumentService
+
+    service = DocumentService(db_session)
+
+    docs = [
+        {"file_id": "F001", "file_name": "rx.jpg", "actual_type": "PRESCRIPTION"},
+    ]
+
+    result = await service.verify_documents(
+        claim_id=1,
+        claim_category="CONSULTATION",
+        policy_doc_reqs={"required": ["PRESCRIPTION", "HOSPITAL_BILL"]},
+        uploaded_docs=docs,
+    )
+
+    assert result["is_valid"] is False
+    assert any(e["error_type"] == "MISSING_REQUIRED" for e in result["errors"])
+```
+
+## Mock LLM Provider
+
+The mock provider (`backend/providers/llm/mock_adapter.py`) returns deterministic responses for testing:
+
+- `chat()` — Returns a generic acknowledgment
+- `extract_structured()` — Returns pre-extracted data if provided in content, otherwise returns mock extraction
+- `health_check()` — Always returns healthy
+
+No API keys or network calls needed.
+
+## E2E Evaluation Script
+
+The eval script (`scripts/run_eval.py`) runs all 12 test cases against the live API:
+
+```bash
+# Start the server first
+uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+
+# Seed the database
+uv run python scripts/seed_data.py
+
+# Run eval
+uv run python scripts/run_eval.py
+```
+
+Output:
+```
+Running 12 test cases...
+
+[1/12] TC001: Wrong Document Uploaded... ✅ PASS (decision: None)
+[2/12] TC002: Unreadable Document... ✅ PASS (decision: None)
+...
+[12/12] TC012: Excluded Treatment... ✅ PASS (decision: REJECTED)
+
+📄 Report written to /workspace/eval_report.md
+   Passed: 12/12 (100.0%)
+```
+
+The eval report (`eval_report.md`) contains full processing traces for each test case.
+
+## Test Data
+
+### Members
+
+Test members are loaded from `assignment/policy_terms.json` by the seed script:
+
+| Member | Name | Password | Notes |
+|--------|------|----------|-------|
+| EMP001 | Rajesh Kumar | pass001 | Self, joined 2020-01-15 |
+| EMP002 | Priya Singh | pass002 | Self, joined 2021-03-01 |
+| EMP003 | Amit Verma | pass003 | Self, joined 2019-06-01 |
+| EMP004 | Sneha Reddy | pass004 | Self, joined 2024-04-01 |
+| EMP005 | Vikram Joshi | pass005 | Self, joined 2026-04-15 (recent!) |
+| ADMIN001 | System Admin | admin123 | Admin role |
+
+### Document Fixtures
+
+The `documents/` folder contains generated test documents:
+- `documents/passing/case1-10/` — Valid documents for approval scenarios
+- `documents/rejection/case1-10/` — Invalid documents for rejection scenarios
+
+Each case has a `case_meta.json` with expected outcomes.
+
+## Continuous Integration
+
+To run tests in CI:
+
+```bash
+# Install dependencies
+uv sync
+
+# Run linting
+uv run ruff check backend/
+
+# Run tests with coverage
+uv run pytest backend/tests/ -v --cov=backend --cov-report=xml
+
+# Run E2E (requires services)
+docker compose up -d
+sleep 10
+uv run python scripts/seed_data.py
+uv run python scripts/run_eval.py
+```

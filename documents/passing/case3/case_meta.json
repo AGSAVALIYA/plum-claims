@@ -1,0 +1,12 @@
+{
+  "case_id": "case3",
+  "name": "Pharmacy \u2014 Generic Drug Purchase",
+  "member_id": "EMP003",
+  "claim_category": "PHARMACY",
+  "treatment_date": "2024-11-02",
+  "claimed_amount": 800,
+  "hospital_name": "Health First Pharmacy",
+  "patient_name": "Amit Verma",
+  "diagnosis": "Acute Gastroenteritis",
+  "expected_decision": "APPROVED"
+}

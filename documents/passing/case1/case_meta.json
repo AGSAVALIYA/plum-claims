@@ -1,0 +1,12 @@
+{
+  "case_id": "case1",
+  "name": "Clean Consultation \u2014 Viral Fever",
+  "member_id": "EMP001",
+  "claim_category": "CONSULTATION",
+  "treatment_date": "2024-11-01",
+  "claimed_amount": 1500,
+  "hospital_name": "City Medical Centre",
+  "patient_name": "Rajesh Kumar",
+  "diagnosis": "Viral Fever (Acute Febrile Illness)",
+  "expected_decision": "APPROVED"
+}

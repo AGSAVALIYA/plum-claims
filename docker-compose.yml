@@ -1,0 +1,236 @@
+services:
+  # ── Application ──────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plum_prod_app
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://plum_admin:password123@db:5432/plum_claims
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PROVIDER=local
+      - STORAGE_PATH=/app/backend/uploads
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    ports:
+      - "3051:8000"
+    volumes:
+      - ./backend/uploads:/app/backend/uploads
+      - ./backend:/app/backend:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Worker ──────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plum_prod_worker
+    command: uv run celery -A backend.core.celery_app worker -Q claims -l info --concurrency=4
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://plum_admin:password123@db:5432/plum_claims
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PROVIDER=local
+      - STORAGE_PATH=/app/backend/uploads
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    volumes:
+      - ./backend/uploads:/app/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Database Seeder (runs once, idempotent) ────────────
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plum_prod_seed
+    command: uv run python scripts/seed_data.py
+    env_file:
+      - backend/.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://plum_admin:password123@db:5432/plum_claims
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - plum_net
+    restart: "no"
+
+  # ── Frontend ────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:3051/api/v1
+    container_name: plum_prod_frontend
+    ports:
+      - "3052:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3051/api/v1
+      - API_REWRITE_TARGET=http://app:8000
+    depends_on:
+      - app
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Database ─────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: plum_prod_db
+    environment:
+      POSTGRES_USER: plum_admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: plum_claims
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3055:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plum_admin -d plum_claims"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Cache ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: plum_prod_redis
+    ports:
+      - "3056:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Interactive PPT ─────────────────────────────────────
+  ppt:
+    build:
+      context: ./ppt
+      dockerfile: Dockerfile
+    container_name: plum_prod_ppt
+    ports:
+      - "3053:3000"
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Documentation ───────────────────────────────────────
+  docs:
+    image: nginx:alpine
+    container_name: plum_prod_docs
+    ports:
+      - "3054:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html/docs:ro
+      - ./infra/nginx/docs.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Object Storage (S3-compatible) ──────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: plum_prod_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "3057:9000"
+      - "3058:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  # ── Observability ────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: plum_prod_jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "3059:16686"   # Jaeger UI
+      - "3060:4317"     # OTLP gRPC
+      - "3061:4318"     # OTLP HTTP
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: plum_prod_prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "3062:9090"
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: plum_prod_grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3063:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - plum_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  plum_net:
+    driver: bridge
