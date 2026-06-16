@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Upload, ShieldCheck, Zap, MonitorPlay, BookOpen } from 'lucide-react';
+import { Upload, ShieldCheck, Zap, MonitorPlay, BookOpen, Presentation } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
